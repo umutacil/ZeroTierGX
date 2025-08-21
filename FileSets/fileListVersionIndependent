@@ -1,0 +1,4 @@
+/data/ZeroTier/bin/armv7l/zerotier-one
+/data/ZeroTier/bin/armv7l/zerotier-cli
+/data/ZeroTier/state/.keep
+/data/ZeroTier/etc/local.conf.example
