@@ -1,0 +1,15 @@
+#!/bin/bash
+# Setup script for ZeroTier on Venus OS via SetupHelper/PackageManager
+# Make sure this file is executable: chmod +x setup
+
+# Trigger the default prompt/install/uninstall flow in IncludeHelpers
+standardPromptAndActions='yes'
+
+# Include SetupHelper resources (required)
+source "/data/SetupHelper/HelperResources/IncludeHelpers"
+
+# If control returns here, you're using a custom flow. Because we set standardPromptAndActions='yes',
+# IncludeHelpers will take over, so we rarely get here.
+
+# Finish: automatic files/services install/uninstall + optional dbus settings
+endScript INSTALL_FILES INSTALL_SERVICE
