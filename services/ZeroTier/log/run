@@ -1,0 +1,6 @@
+#!/bin/sh
+# Runit logging for ZeroTier
+# Uses svlogd; logs in /var/log/ZeroTier (non-persistent across firmware updates)
+exec 2>&1
+mkdir -p /var/log/ZeroTier
+exec svlogd -tt /var/log/ZeroTier
