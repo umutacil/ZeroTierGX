@@ -1,0 +1,70 @@
+#!/bin/sh
+# Runit 'run' script for ZeroTier on Venus OS
+# Runs zerotier-one in daemon mode (-d) with a persistent working dir under /data,
+# and keeps the runit service alive while the daemon is running.
+
+exec 2>&1
+set -eu
+
+PKG_DIR="/data/ZeroTier"
+STATE_DIR="$PKG_DIR/state"
+BIN_DIR="$PKG_DIR/bin"
+ARCH="$(uname -m)"
+
+# Pick binary subdir by arch
+case "$ARCH" in
+  aarch64)   BIN_SUB="aarch64" ;;
+  armv7l|armv7*) BIN_SUB="armv7l" ;;
+  *)         BIN_SUB="armv7l" ;;  # fallback; adjust if you add more builds
+esac
+
+ZT_ONE="$BIN_DIR/zerotier-one"
+
+# Ensure state dir exists and is private
+mkdir -p "$STATE_DIR"
+chmod 700 "$STATE_DIR"
+
+# Optional: copy a default local.conf if none exists (comment out if you prefer not to)
+if [ ! -f "$STATE_DIR/local.conf" ] && [ -f "$PKG_DIR/etc/local.conf.example" ]; then
+  cp "$PKG_DIR/etc/local.conf.example" "$STATE_DIR/local.conf"
+  chmod 600 "$STATE_DIR/local.conf"
+fi
+
+# Start zerotier-one in daemon mode (-d) with working dir = STATE_DIR
+# See man page for working dir behavior: https://man.archlinux.org/man/extra/zerotier-one/zerotier-one.8.en
+umask 077
+"$ZT_ONE" -d "$STATE_DIR"
+
+PIDFILE="$STATE_DIR/zerotier-one.pid"
+
+# Graceful stop on TERM from runit
+term_handler() {
+  if [ -f "$PIDFILE" ]; then
+    PID="$(cat "$PIDFILE" 2>/dev/null || true)"
+    if [ -n "${PID:-}" ] && kill -0 "$PID" 2>/dev/null; then
+      kill "$PID" 2>/dev/null || true
+      # wait for clean shutdown
+      TIMEOUT=20
+      while [ $TIMEOUT -gt 0 ] && kill -0 "$PID" 2>/dev/null; do
+        sleep 1
+        TIMEOUT=$((TIMEOUT-1))
+      done
+    fi
+  fi
+  exit 0
+}
+trap term_handler TERM INT
+
+# Keep runit 'run' process alive while zerotier-one is running
+# zerotier-one writes its PID and removes pidfile on clean exit.
+while true; do
+  if [ -f "$PIDFILE" ]; then
+    PID="$(cat "$PIDFILE" 2>/dev/null || true)"
+    if [ -n "${PID:-}" ] && kill -0 "$PID" 2>/dev/null; then
+      sleep 5
+      continue
+    fi
+  fi
+  # daemon stopped; exit to let runit restart if desired
+  exit 0
+done
